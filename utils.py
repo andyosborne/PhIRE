@@ -3,43 +3,43 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 def conv_layer_2d(x, filter_shape, stride, trainable=True):
-    W = tf.get_variable(
+    W = tf.compat.v1.get_variable(
         name='weight',
         shape=filter_shape,
         dtype=tf.float32,
-        initializer=tf.contrib.layers.xavier_initializer(),
+        initializer=tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform"),
         trainable=trainable)
-    b = tf.get_variable(
+    b = tf.compat.v1.get_variable(
         name='bias',
         shape=[filter_shape[-1]],
         dtype=tf.float32,
-        initializer=tf.contrib.layers.xavier_initializer(),
+        initializer=tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform"),
         trainable=trainable)
     x = tf.nn.bias_add(tf.nn.conv2d(
         input=x,
-        filter=W,
+        filters=W,
         strides=[1, stride, stride, 1],
         padding='SAME'), b)
 
     return x
 
 def deconv_layer_2d(x, filter_shape, output_shape, stride, trainable=True):
-    x = tf.pad(x, [[0,0], [3,3], [3,3], [0,0]], mode='reflect')
-    W = tf.get_variable(
+    x = tf.pad(tensor=x, paddings=[[0,0], [3,3], [3,3], [0,0]], mode='reflect')
+    W = tf.compat.v1.get_variable(
         name='weight',
         shape=filter_shape,
         dtype=tf.float32,
-        initializer=tf.contrib.layers.xavier_initializer(),
+        initializer=tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform"),
         trainable=trainable)
-    b = tf.get_variable(
+    b = tf.compat.v1.get_variable(
         name='bias',
         shape=[output_shape[-1]],
         dtype=tf.float32,
-        initializer=tf.contrib.layers.xavier_initializer(),
+        initializer=tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform"),
         trainable=trainable)
     x = tf.nn.bias_add(tf.nn.conv2d_transpose(
-        value=x,
-        filter=W,
+        input=x,
+        filters=W,
         output_shape=output_shape,
         strides=[1, stride, stride, 1],
         padding='SAME'), b)
@@ -49,24 +49,24 @@ def deconv_layer_2d(x, filter_shape, output_shape, stride, trainable=True):
 def flatten_layer(x):
     input_shape = x.get_shape().as_list()
     dim = input_shape[1] * input_shape[2] * input_shape[3]
-    transposed = tf.transpose(x, (0, 3, 1, 2))
+    transposed = tf.transpose(a=x, perm=(0, 3, 1, 2))
     x = tf.reshape(transposed, [-1, dim])
 
     return x
 
 def dense_layer(x, out_dim, trainable=True):
     in_dim = x.get_shape().as_list()[-1]
-    W = tf.get_variable(
+    W = tf.compat.v1.get_variable(
         name='weight',
         shape=[in_dim, out_dim],
         dtype=tf.float32,
-        initializer=tf.truncated_normal_initializer(stddev=0.02),
+        initializer=tf.compat.v1.truncated_normal_initializer(stddev=0.02),
         trainable=trainable)
-    b = tf.get_variable(
+    b = tf.compat.v1.get_variable(
         name='bias',
         shape=[out_dim],
         dtype=tf.float32,
-        initializer=tf.constant_initializer(0.0),
+        initializer=tf.compat.v1.constant_initializer(0.0),
         trainable=trainable)
     x = tf.add(tf.matmul(x, W), b)
 
@@ -74,9 +74,9 @@ def dense_layer(x, out_dim, trainable=True):
 
 def pixel_shuffle_layer(x, r, n_split):
     def PS(x, r):
-        N, h, w = tf.shape(x)[0], tf.shape(x)[1], tf.shape(x)[2]
+        N, h, w = tf.shape(input=x)[0], tf.shape(input=x)[1], tf.shape(input=x)[2]
         x = tf.reshape(x, (N, h, w, r, r))
-        x = tf.transpose(x, (0, 1, 2, 4, 3))
+        x = tf.transpose(a=x, perm=(0, 1, 2, 4, 3))
         x = tf.split(x, h, 1)
         x = tf.concat([tf.squeeze(x_) for x_ in x], 2)
         x = tf.split(x, w, 1)
@@ -135,17 +135,17 @@ def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
 def downscale_image(x, K):
-    tf.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
 
     if x.ndim == 3:
         x = x.reshape((1, x.shape[0], x.shape[1], x.shape[2]))
 
-    x_in = tf.placeholder(tf.float64, [None, x.shape[1], x.shape[2], x.shape[3]])
+    x_in = tf.compat.v1.placeholder(tf.float64, [None, x.shape[1], x.shape[2], x.shape[3]])
 
     weight = tf.constant(1.0/K**2, shape=[K, K, x.shape[3], x.shape[3]], dtype=tf.float64)
-    downscaled = tf.nn.conv2d(x_in, filter=weight, strides=[1, K, K, 1], padding='SAME')
+    downscaled = tf.nn.conv2d(input=x_in, filters=weight, strides=[1, K, K, 1], padding='SAME')
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         ds_out = sess.run(downscaled, feed_dict={x_in: x})
 
     return ds_out
@@ -169,7 +169,7 @@ def generate_TFRecords(filename, data, mode='test', K=None):
         assert K is not None, 'In training mode, downscaling factor K must be specified'
         data_LR = downscale_image(data, K)
 
-    with tf.python_io.TFRecordWriter(filename) as writer:
+    with tf.io.TFRecordWriter(filename) as writer:
         for j in range(data.shape[0]):
             if mode == 'train':
                 h_HR, w_HR, c = data[j, ...].shape

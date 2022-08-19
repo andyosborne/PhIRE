@@ -74,7 +74,7 @@ class PhIREGANs:
                 saved_model - (string) path to the trained model
         '''
         
-        tf.reset_default_graph()
+        tf.compat.v1.reset_default_graph()
         
         if self.mu_sig is None:
             self.set_mu_sig(data_path, batch_size)
@@ -83,30 +83,32 @@ class PhIREGANs:
         h, w, C = self.LR_data_shape
 
         print('Initializing network ...', end=' ')
-        x_LR = tf.placeholder(tf.float32, [None, h,             w,            C])
-        x_HR = tf.placeholder(tf.float32, [None, h*np.prod(r),  w*np.prod(r), C])
+        x_LR = tf.compat.v1.placeholder(tf.float32, [None, h,             w,            C])
+        x_HR = tf.compat.v1.placeholder(tf.float32, [None, h*np.prod(r),  w*np.prod(r), C])
 
         model = SR_NETWORK(x_LR, x_HR, r=r, status='pretraining')
 
-        optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+        optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=self.learning_rate)
         g_train_op = optimizer.minimize(model.g_loss, var_list= model.g_variables)
-        init = tf.global_variables_initializer()
+        init = tf.compat.v1.global_variables_initializer()
 
-        g_saver = tf.train.Saver(var_list=model.g_variables, max_to_keep=10000)
+        g_saver = tf.compat.v1.train.Saver(var_list=model.g_variables, max_to_keep=10000)
         print('Done.')
 
         print('Building data pipeline ...', end=' ')
         ds = tf.data.TFRecordDataset(data_path)
         ds = ds.map(lambda xx: self._parse_train_(xx, self.mu_sig)).shuffle(1000).batch(batch_size)
 
-        iterator = tf.data.Iterator.from_structure(ds.output_types,
-                                                   ds.output_shapes)
+        iterator = tf.compat.v1.data.Iterator.from_structure(tf.compat.v1.data.get_output_types(ds),
+            tf.compat.v1.data.get_output_shapes(ds))
+                                       
+
         idx, LR_out, HR_out = iterator.get_next()
 
         init_iter = iterator.make_initializer(ds)
         print('Done.')
 
-        with tf.Session() as sess:
+        with tf.compat.v1.Session() as sess:
             print('Training network ...')
 
             sess.run(init)
@@ -184,7 +186,7 @@ class PhIREGANs:
                 g_saved_model - (string) path to the trained generator model
         '''
         
-        tf.reset_default_graph()
+        tf.compat.v1.reset_default_graph()
 
         assert model_path is not None, 'Must provide path for pretrained model'
         
@@ -195,32 +197,33 @@ class PhIREGANs:
         h, w, C = self.LR_data_shape
 
         print('Initializing network ...', end=' ')
-        x_LR = tf.placeholder(tf.float32, [None, h,             w,            C])
-        x_HR = tf.placeholder(tf.float32, [None, h*np.prod(r),  w*np.prod(r), C])
+        x_LR = tf.compat.v1.placeholder(tf.float32, [None, h,             w,            C])
+        x_HR = tf.compat.v1.placeholder(tf.float32, [None, h*np.prod(r),  w*np.prod(r), C])
 
         model = SR_NETWORK(x_LR, x_HR, r=r, status='training', alpha_advers=alpha_advers)
 
-        optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+        optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=self.learning_rate)
         g_train_op = optimizer.minimize(model.g_loss, var_list=model.g_variables)
         d_train_op = optimizer.minimize(model.d_loss, var_list=model.d_variables)
-        init = tf.global_variables_initializer()
+        init = tf.compat.v1.global_variables_initializer()
 
-        g_saver = tf.train.Saver(var_list=model.g_variables, max_to_keep=10000)
-        gd_saver = tf.train.Saver(var_list=(model.g_variables+model.d_variables), max_to_keep=10000)
+        g_saver = tf.compat.v1.train.Saver(var_list=model.g_variables, max_to_keep=10000)
+        gd_saver = tf.compat.v1.train.Saver(var_list=(model.g_variables+model.d_variables), max_to_keep=10000)
         print('Done.')
 
         print('Building data pipeline ...', end=' ')
         ds = tf.data.TFRecordDataset(data_path)
         ds = ds.map(lambda xx: self._parse_train_(xx, self.mu_sig)).shuffle(1000).batch(batch_size)
 
-        iterator = tf.data.Iterator.from_structure(ds.output_types,
-                                                   ds.output_shapes)
+        iterator = tf.compat.v1.data.Iterator.from_structure(tf.compat.v1.data.get_output_types(ds),
+            tf.compat.v1.data.get_output_shapes(ds))
+        
         idx, LR_out, HR_out = iterator.get_next()
 
         init_iter = iterator.make_initializer(ds)
         print('Done.')
 
-        with tf.Session() as sess:
+        with tf.compat.v1.Session() as sess:
             print('Training network ...')
 
             sess.run(init)
@@ -329,7 +332,7 @@ class PhIREGANs:
                 plot_data  - (bool) flag for whether or not to plot LR and SR images
         '''
 
-        tf.reset_default_graph()
+        tf.compat.v1.reset_default_graph()
         
         assert self.mu_sig is not None, 'Value for mu_sig must be set first.'
         
@@ -338,12 +341,12 @@ class PhIREGANs:
 
         print('Initializing network ...', end=' ')
         
-        x_LR = tf.placeholder(tf.float32, [None, None, None, C])
+        x_LR = tf.compat.v1.placeholder(tf.float32, [None, None, None, C])
 
         model = SR_NETWORK(x_LR, r=r, status='testing')
 
-        init = tf.global_variables_initializer()
-        g_saver = tf.train.Saver(var_list=model.g_variables, max_to_keep=10000)
+        init = tf.compat.v1.global_variables_initializer()
+        g_saver = tf.compat.v1.train.Saver(var_list=model.g_variables, max_to_keep=10000)
         print('Done.')
 
         print('Building data pipeline ...', end=' ')
@@ -351,14 +354,16 @@ class PhIREGANs:
         ds = tf.data.TFRecordDataset(data_path)
         ds = ds.map(lambda xx: self._parse_test_(xx, self.mu_sig)).batch(batch_size)
 
-        iterator = tf.data.Iterator.from_structure(ds.output_types,
-                                                   ds.output_shapes)
+        iterator = tf.compat.v1.data.Iterator.from_structure(tf.compat.v1.data.get_output_types(ds),
+            tf.compat.v1.data.get_output_shapes(ds))
+
+
         idx, LR_out = iterator.get_next()
 
         init_iter = iterator.make_initializer(ds)
         print('Done.')
 
-        with tf.Session() as sess:
+        with tf.compat.v1.Session() as sess:
             print('Loading saved network ...', end=' ')
             sess.run(init)
             g_saver.restore(sess, model_path)
@@ -413,15 +418,15 @@ class PhIREGANs:
                 data_HR - array of HR images in the batch
         '''
 
-        feature = {'index': tf.FixedLenFeature([], tf.int64),
-                 'data_LR': tf.FixedLenFeature([], tf.string),
-                    'h_LR': tf.FixedLenFeature([], tf.int64),
-                    'w_LR': tf.FixedLenFeature([], tf.int64),
-                 'data_HR': tf.FixedLenFeature([], tf.string),
-                    'h_HR': tf.FixedLenFeature([], tf.int64),
-                    'w_HR': tf.FixedLenFeature([], tf.int64),
-                       'c': tf.FixedLenFeature([], tf.int64)}
-        example = tf.parse_single_example(serialized_example, feature)
+        feature = {'index': tf.io.FixedLenFeature([], tf.int64),
+                 'data_LR': tf.io.FixedLenFeature([], tf.string),
+                    'h_LR': tf.io.FixedLenFeature([], tf.int64),
+                    'w_LR': tf.io.FixedLenFeature([], tf.int64),
+                 'data_HR': tf.io.FixedLenFeature([], tf.string),
+                    'h_HR': tf.io.FixedLenFeature([], tf.int64),
+                    'w_HR': tf.io.FixedLenFeature([], tf.int64),
+                       'c': tf.io.FixedLenFeature([], tf.int64)}
+        example = tf.io.parse_single_example(serialized=serialized_example, features=feature)
 
         idx = example['index']
 
@@ -430,8 +435,8 @@ class PhIREGANs:
 
         c = example['c']
 
-        data_LR = tf.decode_raw(example['data_LR'], tf.float64)
-        data_HR = tf.decode_raw(example['data_HR'], tf.float64)
+        data_LR = tf.io.decode_raw(example['data_LR'], tf.float64)
+        data_HR = tf.io.decode_raw(example['data_HR'], tf.float64)
 
         data_LR = tf.reshape(data_LR, (h_LR, w_LR, c))
         data_HR = tf.reshape(data_HR, (h_HR, w_HR, c))
@@ -455,12 +460,12 @@ class PhIREGANs:
                 data_LR - array of LR images in the batch
         '''
 
-        feature = {'index': tf.FixedLenFeature([], tf.int64),
-                 'data_LR': tf.FixedLenFeature([], tf.string),
-                    'h_LR': tf.FixedLenFeature([], tf.int64),
-                    'w_LR': tf.FixedLenFeature([], tf.int64),
-                       'c': tf.FixedLenFeature([], tf.int64)}
-        example = tf.parse_single_example(serialized_example, feature)
+        feature = {'index': tf.io.FixedLenFeature([], tf.int64),
+                 'data_LR': tf.io.FixedLenFeature([], tf.string),
+                    'h_LR': tf.io.FixedLenFeature([], tf.int64),
+                    'w_LR': tf.io.FixedLenFeature([], tf.int64),
+                       'c': tf.io.FixedLenFeature([], tf.int64)}
+        example = tf.io.parse_single_example(serialized=serialized_example, features=feature)
 
         idx = example['index']
 
@@ -468,7 +473,7 @@ class PhIREGANs:
 
         c = example['c']
 
-        data_LR = tf.decode_raw(example['data_LR'], tf.float64)
+        data_LR = tf.io.decode_raw(example['data_LR'], tf.float64)
 
         data_LR = tf.reshape(data_LR, (h_LR, w_LR, c))
 
@@ -491,10 +496,10 @@ class PhIREGANs:
         dataset = tf.data.TFRecordDataset(data_path)
         dataset = dataset.map(self._parse_train_).batch(batch_size)
 
-        iterator = dataset.make_one_shot_iterator()
+        iterator = tf.compat.v1.data.make_one_shot_iterator(dataset)
         _, _, HR_out = iterator.get_next()
 
-        with tf.Session() as sess:
+        with tf.compat.v1.Session() as sess:
             N, mu, sigma = 0, 0, 0
             try:
                 while True:
@@ -531,10 +536,10 @@ class PhIREGANs:
         dataset = tf.data.TFRecordDataset(data_path)
         dataset = dataset.map(self._parse_test_).batch(1)
 
-        iterator = dataset.make_one_shot_iterator()
+        iterator = tf.compat.v1.data.make_one_shot_iterator(dataset)
         _, LR_out = iterator.get_next()
 
-        with tf.Session() as sess:
+        with tf.compat.v1.Session() as sess:
             data_LR = sess.run(LR_out)
         
         self.LR_data_shape = data_LR.shape[1:]
